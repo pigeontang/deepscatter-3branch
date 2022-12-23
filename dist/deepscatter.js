@@ -29238,6 +29238,7 @@ class ArrowTile extends Tile {
     __publicField(this, "batch_num");
     __publicField(this, "full_tab");
     this.full_tab = table2;
+    console.log(table2);
     this._batch = table2.batches[batch_num];
     this.download_state = "Complete";
     this.batch_num = batch_num;
