@@ -483,7 +483,6 @@ export class ArrowTile extends Tile {
   ) {
     super(dataset);
     this.full_tab = table;
-    console.log(table);
     this._batch = table.batches[batch_num];
     this.download_state = 'Complete';
     this.batch_num = batch_num;
