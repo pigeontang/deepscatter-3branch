@@ -856,14 +856,13 @@ class Color extends Aesthetic {
   }
 
   update(encoding: ColorChannel) {
-    console.log('UPDATING COLOR');
     if (isConstantChannel(encoding) && typeof encoding.constant === 'string') {
       encoding.constant = Color.convert_color(encoding.constant);
     }
     super.update(encoding);
     this.current_encoding = encoding;
     if (encoding.range && typeof encoding.range[0] === 'string') {
-      console.log('encoding to buffer');
+      
       this.encode_for_textures(encoding.range);
       this.post_to_regl_buffer();
     } else if (encoding.range) {
