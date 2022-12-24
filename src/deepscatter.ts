@@ -628,7 +628,6 @@ class TooltipHTML extends SettableFunction<string> {
     // By default, this returns a
     let output = '<dl>';
     const nope = new Set(['x', 'y', 'ix', null, 'tile_key']);
-    console.log({ ...point });
     for (const [k, v] of point) {
       if (nope.has(k)) {
         continue;

@@ -1,2 +1,7 @@
 node_modules
 tests
+*.csv
+tile/
+tiles/
+mysql/
+_deepscatter_tmp/

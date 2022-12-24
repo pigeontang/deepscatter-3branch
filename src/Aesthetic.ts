@@ -862,7 +862,6 @@ class Color extends Aesthetic {
     super.update(encoding);
     this.current_encoding = encoding;
     if (encoding.range && typeof encoding.range[0] === 'string') {
-      
       this.encode_for_textures(encoding.range);
       this.post_to_regl_buffer();
     } else if (encoding.range) {

@@ -942,7 +942,7 @@ function intern_set({ _intern, _key }, value) {
 function intern_delete({ _intern, _key }, value) {
   const key = _key(value);
   if (_intern.has(key)) {
-    value = _intern.get(value);
+    value = _intern.get(key);
     _intern.delete(key);
   }
   return value;
@@ -1686,65 +1686,93 @@ function lengthPoint(x, y) {
   x0 = x, y0 = y;
 }
 const pathMeasure = lengthStream;
-function PathString() {
-  this._string = [];
-}
-PathString.prototype = {
-  _radius: 4.5,
-  _circle: circle(4.5),
-  pointRadius: function(_) {
-    if ((_ = +_) !== this._radius)
-      this._radius = _, this._circle = null;
+let cacheDigits, cacheAppend, cacheRadius, cacheCircle;
+class PathString {
+  constructor(digits) {
+    this._append = digits == null ? append : appendRound(digits);
+    this._radius = 4.5;
+    this._ = "";
+  }
+  pointRadius(_) {
+    this._radius = +_;
     return this;
-  },
-  polygonStart: function() {
+  }
+  polygonStart() {
     this._line = 0;
-  },
-  polygonEnd: function() {
+  }
+  polygonEnd() {
     this._line = NaN;
-  },
-  lineStart: function() {
+  }
+  lineStart() {
     this._point = 0;
-  },
-  lineEnd: function() {
+  }
+  lineEnd() {
     if (this._line === 0)
-      this._string.push("Z");
+      this._ += "Z";
     this._point = NaN;
-  },
-  point: function(x, y) {
+  }
+  point(x, y) {
     switch (this._point) {
       case 0: {
-        this._string.push("M", x, ",", y);
+        this._append`M${x},${y}`;
         this._point = 1;
         break;
       }
       case 1: {
-        this._string.push("L", x, ",", y);
+        this._append`L${x},${y}`;
         break;
       }
       default: {
-        if (this._circle == null)
-          this._circle = circle(this._radius);
-        this._string.push("M", x, ",", y, this._circle);
+        this._append`M${x},${y}`;
+        if (this._radius !== cacheRadius || this._append !== cacheAppend) {
+          const r = this._radius;
+          const s = this._;
+          this._ = "";
+          this._append`m0,${r}a${r},${r} 0 1,1 0,${-2 * r}a${r},${r} 0 1,1 0,${2 * r}z`;
+          cacheRadius = r;
+          cacheAppend = this._append;
+          cacheCircle = this._;
+          this._ = s;
+        }
+        this._ += cacheCircle;
         break;
       }
     }
-  },
-  result: function() {
-    if (this._string.length) {
-      var result = this._string.join("");
-      this._string = [];
-      return result;
-    } else {
-      return null;
-    }
   }
-};
-function circle(radius) {
-  return "m0," + radius + "a" + radius + "," + radius + " 0 1,1 0," + -2 * radius + "a" + radius + "," + radius + " 0 1,1 0," + 2 * radius + "z";
+  result() {
+    const result = this._;
+    this._ = "";
+    return result.length ? result : null;
+  }
+}
+function append(strings) {
+  let i = 1;
+  this._ += strings[0];
+  for (const j = strings.length; i < j; ++i) {
+    this._ += arguments[i] + strings[i];
+  }
+}
+function appendRound(digits) {
+  const d = Math.floor(digits);
+  if (!(d >= 0))
+    throw new RangeError(`invalid digits: ${digits}`);
+  if (d > 15)
+    return append;
+  if (d !== cacheDigits) {
+    const k = 10 ** d;
+    cacheDigits = d;
+    cacheAppend = function append2(strings) {
+      let i = 1;
+      this._ += strings[0];
+      for (const j = strings.length; i < j; ++i) {
+        this._ += Math.round(arguments[i] * k) / k + strings[i];
+      }
+    };
+  }
+  return cacheAppend;
 }
 function geoPath(projection, context) {
-  var pointRadius = 4.5, projectionStream, contextStream;
+  let digits = 3, pointRadius = 4.5, projectionStream, contextStream;
   function path(object2) {
     if (object2) {
       if (typeof pointRadius === "function")
@@ -1770,12 +1798,15 @@ function geoPath(projection, context) {
     return pathCentroid.result();
   };
   path.projection = function(_) {
-    return arguments.length ? (projectionStream = _ == null ? (projection = null, identity$5) : (projection = _).stream, path) : projection;
+    if (!arguments.length)
+      return projection;
+    projectionStream = _ == null ? (projection = null, identity$5) : (projection = _).stream;
+    return path;
   };
   path.context = function(_) {
     if (!arguments.length)
       return context;
-    contextStream = _ == null ? (context = null, new PathString()) : new PathContext(context = _);
+    contextStream = _ == null ? (context = null, new PathString(digits)) : new PathContext(context = _);
     if (typeof pointRadius !== "function")
       contextStream.pointRadius(pointRadius);
     return path;
@@ -1786,7 +1817,22 @@ function geoPath(projection, context) {
     pointRadius = typeof _ === "function" ? _ : (contextStream.pointRadius(+_), +_);
     return path;
   };
-  return path.projection(projection).context(context);
+  path.digits = function(_) {
+    if (!arguments.length)
+      return digits;
+    if (_ == null)
+      digits = null;
+    else {
+      const d = Math.floor(_);
+      if (!(d >= 0))
+        throw new RangeError(`invalid digits: ${_}`);
+      digits = d;
+    }
+    if (context === null)
+      contextStream = new PathString(digits);
+    return path;
+  };
+  return path.projection(projection).digits(digits).context(context);
 }
 function transformer$2(methods) {
   return function(stream) {
@@ -11025,19 +11071,19 @@ var regl = { exports: {} };
         return a < b ? -1 : 1;
       });
     }
-    function Declaration(thisDep, contextDep, propDep, append) {
+    function Declaration(thisDep, contextDep, propDep, append2) {
       this.thisDep = thisDep;
       this.contextDep = contextDep;
       this.propDep = propDep;
-      this.append = append;
+      this.append = append2;
     }
     function isStatic(decl) {
       return decl && !(decl.thisDep || decl.contextDep || decl.propDep);
     }
-    function createStaticDecl(append) {
-      return new Declaration(false, false, false, append);
+    function createStaticDecl(append2) {
+      return new Declaration(false, false, false, append2);
     }
-    function createDynamicDecl(dyn, append) {
+    function createDynamicDecl(dyn, append2) {
       var type = dyn.type;
       if (type === DYN_FUNC$1) {
         var numArgs = dyn.data.length;
@@ -11045,7 +11091,7 @@ var regl = { exports: {} };
           true,
           numArgs >= 1,
           numArgs >= 2,
-          append
+          append2
         );
       } else if (type === DYN_THUNK) {
         var data = dyn.data;
@@ -11053,14 +11099,14 @@ var regl = { exports: {} };
           data.thisDep,
           data.contextDep,
           data.propDep,
-          append
+          append2
         );
       } else if (type === DYN_CONSTANT$1) {
         return new Declaration(
           false,
           false,
           false,
-          append
+          append2
         );
       } else if (type === DYN_ARRAY$1) {
         var thisDep = false;
@@ -11093,14 +11139,14 @@ var regl = { exports: {} };
           thisDep,
           contextDep,
           propDep,
-          append
+          append2
         );
       } else {
         return new Declaration(
           type === DYN_STATE$1,
           type === DYN_CONTEXT$1,
           type === DYN_PROP$1,
-          append
+          append2
         );
       }
     }
@@ -29238,7 +29284,6 @@ class ArrowTile extends Tile {
     __publicField(this, "batch_num");
     __publicField(this, "full_tab");
     this.full_tab = table2;
-    console.log(table2);
     this._batch = table2.batches[batch_num];
     this.download_state = "Complete";
     this.batch_num = batch_num;
@@ -30792,7 +30837,6 @@ class TooltipHTML extends SettableFunction {
   default(point) {
     let output = "<dl>";
     const nope = /* @__PURE__ */ new Set(["x", "y", "ix", null, "tile_key"]);
-    console.log({ ...point });
     for (const [k, v] of point) {
       if (nope.has(k)) {
         continue;
