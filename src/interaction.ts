@@ -165,7 +165,7 @@ export default class Zoom {
 
     select('#deepscatter-svg')
       .append('circle')
-      .attr('id', datum.ix)
+      .attr('id', "tooltipcircle")
       .attr('class', 'label')
       .attr('stroke', '#110022')
       .attr('r', 12)
@@ -221,7 +221,7 @@ export default class Zoom {
           (enter) =>
             enter
               .append('circle')
-              .attr('id', (datum) => datum.ix)
+              .attr('id', "tooltipcircle")
               .attr('class', 'label')
               .attr('stroke', '#110022')
               .attr('r', 12)
