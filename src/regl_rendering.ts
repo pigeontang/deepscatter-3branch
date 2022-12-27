@@ -255,6 +255,7 @@ export class ReglRenderer<T extends Tile> extends Renderer {
       regl.clear({ color: [0, 0, 0, 0] });
       regl({
         frag: gaussian_blur,
+        preserveDrawingBuffer: true,
         uniforms: {
           iResolution: ({ viewportWidth, viewportHeight }) => [
             viewportWidth,
@@ -340,6 +341,7 @@ export class ReglRenderer<T extends Tile> extends Renderer {
 
     for (const layer of [this.fbos.lines, this.fbos.points]) {
       regl({
+        preserveDrawingBuffer: true,
         profile: true,
         blend: {
           enable: true,

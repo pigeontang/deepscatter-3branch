@@ -18577,6 +18577,7 @@ class ReglRenderer extends Renderer {
       regl2.clear({ color: [0, 0, 0, 0] });
       regl2({
         frag: gaussian_blur,
+        preserveDrawingBuffer: true,
         uniforms: {
           iResolution: ({ viewportWidth, viewportHeight }) => [
             viewportWidth,
@@ -18625,6 +18626,7 @@ class ReglRenderer extends Renderer {
     }
     for (const layer of [this.fbos.lines, this.fbos.points]) {
       regl2({
+        preserveDrawingBuffer: true,
         profile: true,
         blend: {
           enable: true,
