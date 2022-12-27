@@ -18830,7 +18830,7 @@ class ReglRenderer extends Renderer {
     const parameters = {
       depth: { enable: false },
       stencil: { enable: false },
-      preserveDrawingBuffer: { enable: true },
+      preserveDrawingBuffer: true,
       blend: {
         enable(_, { color_picker_mode }) {
           return color_picker_mode < 0.5;
