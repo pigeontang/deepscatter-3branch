@@ -16,6 +16,7 @@ import REGL from 'regl';
 import { Dataset } from './Dataset';
 import { Frame } from '@playwright/test';
 import Scatterplot from './deepscatter';
+import { toArrayBufferView } from 'apache-arrow/util/buffer';
 
 // eslint-disable-next-line import/prefer-default-export
 export class ReglRenderer<T extends Tile> extends Renderer {
@@ -255,7 +256,6 @@ export class ReglRenderer<T extends Tile> extends Renderer {
       regl.clear({ color: [0, 0, 0, 0] });
       regl({
         frag: gaussian_blur,
-        preserveDrawingBuffer: true,
         uniforms: {
           iResolution: ({ viewportWidth, viewportHeight }) => [
             viewportWidth,
@@ -341,7 +341,6 @@ export class ReglRenderer<T extends Tile> extends Renderer {
 
     for (const layer of [this.fbos.lines, this.fbos.points]) {
       regl({
-        preserveDrawingBuffer: true,
         profile: true,
         blend: {
           enable: true,
@@ -767,7 +766,6 @@ export class ReglRenderer<T extends Tile> extends Renderer {
     const parameters = {
       depth: { enable: false },
       stencil: { enable: false },
-      preserveDrawingBuffer: true,
       blend: {
         enable(_, { color_picker_mode }) {
           return color_picker_mode < 0.5;
@@ -870,7 +868,6 @@ export class ReglRenderer<T extends Tile> extends Renderer {
         },
       },
     };
-
     // store needed buffers
     for (const i of range(0, 16)) {
       parameters.attributes[`buffer_${i}`] = (

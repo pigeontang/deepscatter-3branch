@@ -103,16 +103,10 @@
   // In practice, you might transform an external annotations layer using this
 
   let cycle = 0;
-  select("#jitter").on("change", (event) => {
-    scatterplot.plotAPI({
-      'encoding': {
-        'jitter_radius': {
-          'method': 'uniform',
-          'constant': +event.target.value
-        }
-      }
-    })
-  })
+  select("#flip").on("click", (event) => {
+    scatterplot.make_big_png(1, 1e7, 100);
+
+})
   let weird = false;
   select("#html").on("click", () => {
     scatterplot.tooltip_html = (datum) => {

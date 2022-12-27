@@ -361,7 +361,7 @@ export default class Scatterplot {
       // Create an anchor, and set the href value to our data URL
       const createEl = document.createElement('a');
       createEl.href = canvasUrl;
-      createEl.style = 'position:fixed;top:40vh;left:40vw;z-index:999;';
+      createEl.style = 'background-color:#000000;position:fixed;top:40vh;left:40vw;z-index:999;';
       // This is the name of our downloaded file
       createEl.download = 'deepscatter';
 

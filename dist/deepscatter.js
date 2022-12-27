@@ -18577,7 +18577,6 @@ class ReglRenderer extends Renderer {
       regl2.clear({ color: [0, 0, 0, 0] });
       regl2({
         frag: gaussian_blur,
-        preserveDrawingBuffer: true,
         uniforms: {
           iResolution: ({ viewportWidth, viewportHeight }) => [
             viewportWidth,
@@ -18626,7 +18625,6 @@ class ReglRenderer extends Renderer {
     }
     for (const layer of [this.fbos.lines, this.fbos.points]) {
       regl2({
-        preserveDrawingBuffer: true,
         profile: true,
         blend: {
           enable: true,
@@ -18832,7 +18830,6 @@ class ReglRenderer extends Renderer {
     const parameters = {
       depth: { enable: false },
       stencil: { enable: false },
-      preserveDrawingBuffer: true,
       blend: {
         enable(_, { color_picker_mode }) {
           return color_picker_mode < 0.5;
@@ -30665,7 +30662,7 @@ class Scatterplot {
       const canvasUrl = canvas.toDataURL();
       const createEl = document.createElement("a");
       createEl.href = canvasUrl;
-      createEl.style = "position:fixed;top:40vh;left:40vw;z-index:999;";
+      createEl.style = "background-color:#000000;position:fixed;top:40vh;left:40vw;z-index:999;";
       createEl.download = "deepscatter";
       createEl.click();
       createEl.remove();
