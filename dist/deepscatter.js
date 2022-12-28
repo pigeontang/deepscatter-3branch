@@ -30631,7 +30631,6 @@ class Scatterplot {
                   width,
                   height
                 );
-                console.log(i, j, sum$1(pixels));
                 const halfHeight = height / 2 | 0;
                 const bytesPerRow = width * 4;
                 var temp = new Uint8Array(width * 4);

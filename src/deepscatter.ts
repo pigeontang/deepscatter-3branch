@@ -320,7 +320,6 @@ export default class Scatterplot {
                   width,
                   height
                 ) as Uint8Array;
-                console.log(i, j, sum(pixels));
 
                 // https://stackoverflow.com/questions/41969562/how-can-i-flip-the-result-of-webglrenderingcontext-readpixels
                 const halfHeight = (height / 2) | 0; // the | 0 keeps the result an int
