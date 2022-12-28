@@ -1,5 +1,5 @@
 {
-  "name": "deepscatter",
+  "name": "deepscatter-3branch",
   "type": "module",
   "version": "3.0.0",
   "description": "Fast, animated zoomable scatterplots scaling to billions of points",
