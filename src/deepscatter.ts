@@ -358,7 +358,7 @@ export default class Scatterplot {
     });
 
     p.then(() => {
-      const canvasUrl = canvas.toDataURL();
+      const canvasUrl = canvas.toDataURL('image/png', 1.0);
       // Create an anchor, and set the href value to our data URL
       const createEl = document.createElement('a');
       createEl.href = canvasUrl;

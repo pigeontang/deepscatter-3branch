@@ -30661,7 +30661,7 @@ class Scatterplot {
       }
     });
     p.then(() => {
-      const canvasUrl = canvas.toDataURL();
+      const canvasUrl = canvas.toDataURL("image/png", 1);
       const createEl = document.createElement("a");
       createEl.href = canvasUrl;
       createEl.style = "position:fixed;top:40vh;left:40vw;z-index:999;";
