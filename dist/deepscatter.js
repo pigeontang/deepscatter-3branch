@@ -30596,7 +30596,7 @@ class Scatterplot {
     }
     setTimeout(() => ctx.clearRect(0, 0, 1e4, 1e4), 17 * 400);
   }
-  async make_big_png(xtimes = 3, points = 1e7, timeper = 100) {
+  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, download_name = "gallery") {
     await this._root.download_to_depth(points);
     const { width, height } = this._renderer;
     this.plotAPI({ duration: 0 });
@@ -30604,6 +30604,8 @@ class Scatterplot {
     canvas.setAttribute("width", (xtimes * width).toString());
     canvas.setAttribute("height", (xtimes * height).toString());
     const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const corners = this._zoom.current_corners();
     this._zoom.transform.k;
     const xstep = (corners.x[1] - corners.x[0]) / xtimes;
@@ -30662,8 +30664,8 @@ class Scatterplot {
       const canvasUrl = canvas.toDataURL();
       const createEl = document.createElement("a");
       createEl.href = canvasUrl;
-      createEl.style = "background-color:#000000;position:fixed;top:40vh;left:40vw;z-index:999;";
-      createEl.download = "deepscatter";
+      createEl.style = "position:fixed;top:40vh;left:40vw;z-index:999;";
+      createEl.download = download_name;
       createEl.click();
       createEl.remove();
     });
