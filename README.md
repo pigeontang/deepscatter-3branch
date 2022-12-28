@@ -1,5 +1,12 @@
 # Deep Scatterplots for the Web
 
+This is a updated version of deepscatter changing some attributes.
+
+## Download
+npm install https://github.com/tongyuding/deepscatter-3branch.git --save
+
+`import Scatterplot from '../node_modules/deepscatter-3branch/dist/deepscatter-3branch'`
+
 This is an evolving library for displaying more points than are ordinarily possible over the web.
 
 It's fast for three reasons:
@@ -188,5 +195,3 @@ jitter method is set on 'method' key of the 'jitter_radius' field. Possible valu
 const scatterplot = new Scatterplot('#deepscatter');
 scatterplot.on_zoom = (transform) => {...}
 ```
-   
-regl_rendering.ts 768
