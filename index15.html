@@ -5,6 +5,7 @@
 </style>
 
 <body>
+  <h1>Welcome to a demo/test page.</h1>
   <div id="deepscatter"></div>
   <div id="controls" style="z-index:99;position:fixed;">
     <label for="label">Label:</label>
@@ -16,8 +17,6 @@
     </select>
     <label for="keyword">Search:</label>
     <input id="keyword" />
-    <button id="search">Search</button>
-    <button id="return">Return</button>
     <pre id="ident"></pre>
   </div>
 </body>
@@ -47,53 +46,56 @@
 <script type="module">
   import Scatterplot from './src/deepscatter';
   import { select } from 'd3-selection';
+  import {
+  scaleLinear,
+  scaleTime,
+  scaleOrdinal
+} from 'd3-scale';
   window.select = select; // For the click function below.
+  window.scaleOrdinal = scaleOrdinal;
   const prefs = {
-    "source_url": "/tile",
+    "source_url": "/tiles",
     "max_points": 10000000, // a full cap.
     "alpha": 100, // Target saturation for the full page.
-    "zoom_balance": 0.5, // Rate at which points increase size. https://observablehq.com/@co bmschmidt/zoom-strategies-for-huge-scatterplots-with-three-js
-    "point_size": 0.05, // Default point size before application of size scaling
+    "zoom_balance": 0.3, // Rate at which points increase size. https://observablehq.com/@bmschmidt/zoom-strategies-for-huge-scatterplots-with-three-js
+    "point_size": 0.02, // Default point size before application of size scaling
     "background_color": "#000000",
-    "click_function": "console.log(datum)",
+    "click_function": "select('#ident').html(JSON.stringify(datum, undefined, 2))",
     "encoding": {
 
       "x": {
         field: "x",
-        transform: "literal",
+        transform: "linear",
+        "domain": [-1000000,1000000],
+        "range": [-1000000, 1000000]
       },
 
       "y": {
         field: "y",
-        transform: "literal",
+        transform: "linear",
+        "domain": [-1000000,1000000],
+        "range": [-1000000, 1000000]
       },
       "size": {
         "field": "size",
-        "transform": "linear",
+        "transform": "sqrt",
         "domain": [5, 1000],
         "range": [5, 1000]
       },
       "color": {
         "field": "subject",
-        "range": ["#03c03c", "#806680", "#d3cefc", "#338cc7", "#eeee44",
-          "#696969", "#e4efe9", "#67001a", "#d3bec2", "#e5d2e9",
-          "#f8a3cc", "#a87e85", "#a174fd", "#FFFFFF", "#25382d",
-          "#79847e", "#f9f7f4", "#151f19", "#3a506d", "#fe3445",
-          "#d34d45", "#a43d45", "#a43d20"],
-        // "range": "category10",
-        "domain": [-2047, 2047],
+        "range": "category10",
+        "domain": [-2047,2047]
       },
-      "filter" : {
-        "field" : "subject",
-        "lambda" : `value => console.log(value)`
-      }
-      // "color" : {
-      //   constant :  "#FFFFFF"
-      // }
       // filter: {
       //   field: "size",
       //   op: "gt",
-      //   a: 100,
+      //   a: 10,
+      // },
+      // filter2: {
+      //   field: "published_year",
+      //   op: "lt",
+      //   a: 1990,
       // }
     }
   };
@@ -120,11 +122,13 @@
   const scatterplot = new Scatterplot("#deepscatter")
   scatterplot.plotAPI(prefs).then(d => scatterplot.plotAPI(prefs));
   window.plot = scatterplot; // For debugging
-
+  console.log(scatterplot)
+  console.log(scatterplot.database)
   // Simple animation demonstration.
 
   // In practice, you might transform an external annotations layer using this
 
+  let cycle = 0;
   document.getElementById("keyword").addEventListener("keypress", function (e) {
     var label = document.getElementById("cat-select").value;
     var keyword = document.getElementById("keyword").value;
@@ -178,59 +182,5 @@
 
   )
 
-
-  select("#search").on("click", function (e) {
-    var label = document.getElementById("cat-select").value;
-    var keyword = document.getElementById("keyword").value;
-    if (keyword !== undefined) {
-      var keyword_lower = keyword.toLowerCase();
-    }
-    if (label !== "") {
-      var new_coding = null;
-      if (label === 'subject') {
-        new_coding = {
-          // eslint-disable-next-line
-          "encoding": {
-            filter: {
-              field: "subject",
-              lambda: `value => String(value).toLowerCase().includes("${keyword_lower}")`
-            }
-          }
-        }
-      }
-      else if (label === "size") {
-        new_coding = {
-          // eslint-disable-next-line
-          "encoding": {
-            filter: {
-              field: "size",
-              op: 'gt',
-              a: keyword
-            }
-          }
-        }
-      }
-      else {
-        new_coding = {
-          // eslint-disable-next-line
-          "encoding": {
-            filter: {
-              field: "paper_id",
-              op: 'eq',
-              a: keyword
-            }
-          }
-        }
-      }
-
-      scatterplot.plotAPI(new_coding).then(d => scatterplot.plotAPI(new_coding));
-    }
-
-  }
-
-  )
-
-
-  document.getElementById("return").addEventListener("click", () => plot.plotAPI({ encoding: { filter: {} } }));
 
 </script>

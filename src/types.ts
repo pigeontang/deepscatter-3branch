@@ -78,13 +78,13 @@ export interface CategoricalChannel {
   field: string;
 }
 
-export type BasicColorChannel = BasicChannel & {
+export type BasicColorChandnel = BasicChannel & {
   range?: [[number, number, number], [number, number, number]] | string;
   domain?: [number, number];
 };
 
 export type CategoricalColorChannel = CategoricalChannel & {
-  range?: [number, number, number][] | string;
+  range?: string[] | string;
   domain?: string[];
 };
 

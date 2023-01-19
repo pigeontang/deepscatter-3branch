@@ -18067,15 +18067,24 @@ class Color extends Aesthetic {
       this.post_to_regl_buffer();
     }
   }
+  hexToRgb(hex2) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex2);
+    return {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    };
+  }
   encode_for_textures(range$1) {
     if (color_palettes[range$1]) {
       this.texture_buffer.set(color_palettes[range$1]);
     } else if (range$1.length === this.aesthetic_map.texture_size * 4) {
       this.texture_buffer.set(range$1);
-    } else if (range$1.length > 0 && range$1[0].length > 0 && range$1[0].length === 3) {
+    } else if (range$1.length > 0 && range$1[0].length == 7) {
       const r = range(palette_size).map((i) => {
-        const [r2, g, b] = range$1[i % range$1.length];
-        return [r2, g, b, 255];
+        const hexcolor = range$1[i % range$1.length];
+        const rgbcolor = this.hexToRgb(hexcolor);
+        return [rgbcolor.r, rgbcolor.g, rgbcolor.b, 255];
       });
       this.texture_buffer.set(r.flat());
     } else {
