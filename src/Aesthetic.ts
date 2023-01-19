@@ -587,7 +587,7 @@ abstract class OneDAesthetic extends Aesthetic {
   }
 }
 
-abstract class BooleanAesthetic extends Aesthetic {}
+abstract class BooleanAesthetic extends Aesthetic { }
 
 class Size extends OneDAesthetic {
   static get default_constant() {
@@ -638,13 +638,13 @@ class X extends PositionalAesthetic {
   field = 'x';
 }
 
-class X0 extends X {}
+class X0 extends X { }
 
 class Y extends PositionalAesthetic {
   field = 'y';
 }
 
-class Y0 extends Y {}
+class Y0 extends Y { }
 
 abstract class AbstractFilter extends BooleanAesthetic {
   public current_encoding: LambdaChannel | OpChannel | ConstantChannel;
@@ -692,7 +692,7 @@ abstract class AbstractFilter extends BooleanAesthetic {
   }
 }
 
-class Filter extends AbstractFilter {}
+class Filter extends AbstractFilter { }
 
 class Jitter_speed extends Aesthetic {
   default_transform: Transform = 'linear';
@@ -869,21 +869,60 @@ class Color extends Aesthetic {
     }
   }
 
-  encode_for_textures(range: string | number[] | Array<Array<number>>) {
+
+  hexToRgb(hex: string | number) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    };
+  }
+
+
+  // encode_for_textures(range: string | number[] | Array<Array<number>>) {
+  //   if (color_palettes[range]) {
+  //     this.texture_buffer.set(color_palettes[range]);
+  //   } else if (range.length === this.aesthetic_map.texture_size * 4) {
+  //     this.texture_buffer.set(range);
+  //   } else if (
+  //     range.length > 0 &&
+  //     range[0].length > 0 &&
+  //     range[0].length === 3
+  //   ) {
+  //     // manually set colors.
+  //     const r = arange(palette_size).map((i) => {
+  //       const [r, g, b] = range[i % range.length];
+  //       return [r, g, b, 255];
+  //     });
+  //     this.texture_buffer.set(r.flat());
+  //   } else {
+  //     console.warn(`request range of ${range} for color ${this.field} unknown`);
+  //   }
+  // }
+
+  // Using string[]
+  encode_for_textures(range: string | number[] | string[]) {
     if (color_palettes[range]) {
+      // console.log(1);
+      // console.log(color_palettes[range]);
       this.texture_buffer.set(color_palettes[range]);
     } else if (range.length === this.aesthetic_map.texture_size * 4) {
+      // console.log(2);
       this.texture_buffer.set(range);
     } else if (
       range.length > 0 &&
-      range[0].length > 0 &&
-      range[0].length === 3
+      range[0].length == 7
     ) {
       // manually set colors.
+      // console.log(3);
       const r = arange(palette_size).map((i) => {
-        const [r, g, b] = range[i % range.length];
-        return [r, g, b, 255];
+        const hexcolor = range[i % range.length];
+        //console.log(hexcolor);
+        const rgbcolor = this.hexToRgb(hexcolor);
+        return [rgbcolor.r, rgbcolor.g, rgbcolor.b, 255];
       });
+      // console.log(r.flat());
       this.texture_buffer.set(r.flat());
     } else {
       console.warn(`request range of ${range} for color ${this.field} unknown`);
