@@ -136,10 +136,14 @@
 
       "x": {
         field: "x",
+        "transform" : "literal",
+        "domain": [-100000, 100000]
       },
 
       "y": {
         field: "y",
+        "transform" : "literal",
+        "domain": [-100000, 100000]
       },
       "size": {
         "field": "size",
@@ -276,7 +280,7 @@
 
   select("#save-svg-all").on("click", function (e) {
     // scatterplot.make_big_png(Math.ceil(scatterplot._zoom.transform.k), 1e8, 1000, 2, "canvas_whole");
-    scatterplot.make_big_png(2, 1e8, 200, 2, "canvas_whole");
+    scatterplot.make_big_png(3, 1e8, 2000, 2, "canvas_whole");
   });
 
 

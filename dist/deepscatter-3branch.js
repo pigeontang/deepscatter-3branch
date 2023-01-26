@@ -30605,7 +30605,7 @@ class Scatterplot {
     }
     setTimeout(() => ctx.clearRect(0, 0, 1e4, 1e4), 17 * 400);
   }
-  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, method = 1, download_name = "gallery") {
+  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, png_method = 1, download_name = "gallery") {
     await this._root.download_to_depth(points);
     const { width, height } = this._renderer;
     this.plotAPI({ duration: 0 });
@@ -30616,20 +30616,24 @@ class Scatterplot {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     var corners = this._zoom.current_corners();
-    this._zoom.transform.k;
-    console.log(corners);
-    if (method === 2) {
-      corners.x = [-64473, 76698];
-      corners.y = [-92314, 67908];
+    if (png_method === 2) {
+      corners = {
+        "x": [
+          -64474,
+          76699
+        ],
+        "y": [
+          -109516.19870410365,
+          84101.19870410365
+        ]
+      };
     }
-    console.log(corners);
+    this._zoom.transform.k;
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
     const p = new Promise((resolve, reject) => {
       for (let i = 0; i < xtimes; i++) {
         for (let j = 0; j < xtimes; j++) {
-          console.log([corners.x[0] + xstep * i, corners.x[0] + xstep * (i + 1)]);
-          console.log([corners.y[0] + ystep * j, corners.y[0] + ystep * (j + 1)]);
           setTimeout(() => {
             this._zoom.zoom_to_bbox(
               {
@@ -30671,7 +30675,7 @@ class Scatterplot {
               if (i == xtimes - 1 && j === xtimes - 1) {
                 resolve();
               }
-            }, timeper);
+            }, timeper / 2);
           }, i * timeper * xtimes + j * timeper);
         }
       }
