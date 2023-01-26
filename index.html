@@ -2,6 +2,72 @@
   .ttooltip {
     z-index: 99
   }
+
+  label {
+    color: white;
+  }
+
+  .show {
+    z-index: 1000;
+    position: absolute;
+    background-color: #FFFFFF;
+    border: 1px solid blue;
+    padding: 0px;
+    display: block;
+    margin: 0;
+    list-style-type: none;
+    list-style: none;
+    border-radius: 8px;
+  }
+
+  .show li {
+    width: 150px;
+    margin: 10px 0px 0px 0px;
+    text-align: center;
+    border-bottom: 1px solid black;
+  }
+
+  .show .save-svg {
+    text-decoration: none;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+  }
+
+  .show li:hover {
+    color: blue;
+    text-decoration: underline;
+  }
+
+
+
+  .hide {
+    display: none;
+  }
+
+  #id-box:empty {
+    display: none;
+  }
+
+  #id-box {
+    display: block;
+    padding: 20px;
+    position: absolute;
+    border: 1px solid black;
+    z-index: 100;
+    background-color: white;
+    color: black;
+    font-size: 75%;
+    text-align: center;
+    overflow-y: auto;
+    right: 0px;
+    width: 30vw;
+  }
+
+  #id-box p {
+    margin: 0;
+    padding: 0;
+  }
 </style>
 
 <body>
@@ -18,7 +84,17 @@
     <input id="keyword" />
     <button id="search">Search</button>
     <button id="return">Return</button>
+    <div id="id-box"></div>
     <pre id="ident"></pre>
+
+    <div className="hide" id="rmenu">
+      <li>
+        <div className="save-svg" id="save-svg">Save</div>
+      </li>
+      <li>
+        <div className="save-svg-all" id="save-svg-all">Save All</div>
+      </li>
+    </div>
   </div>
 </body>
 
@@ -52,70 +128,32 @@
     "source_url": "/tile",
     "max_points": 10000000, // a full cap.
     "alpha": 100, // Target saturation for the full page.
-    "zoom_balance": 0.5, // Rate at which points increase size. https://observablehq.com/@co bmschmidt/zoom-strategies-for-huge-scatterplots-with-three-js
-    "point_size": 0.05, // Default point size before application of size scaling
+    "zoom_balance": 0.3, // Rate at which points increase size. https://observablehq.com/@bmschmidt/zoom-strategies-for-huge-scatterplots-with-three-js
+    "point_size": 0.01, // Default point size before application of size scaling
     "background_color": "#000000",
-    "click_function": "console.log(datum)",
+    "click_function": "select('#id-box').html(`<span>Paper ID: </span><p><em style='color:blue'>${datum.paper_id}</em></p><span>Title: </span><p><em style='color:blue'>${datum.title}</em></p><p>Published Year: <em style='color:blue'>${datum.published_year}</em></p><p>Subject: <em style='color:blue'>${datum.subject}</em></p>`);",
     "encoding": {
 
       "x": {
         field: "x",
-        transform: "literal",
       },
 
       "y": {
         field: "y",
-        transform: "literal",
       },
       "size": {
         "field": "size",
-        "transform": "linear",
-        "domain": [5, 1000],
-        "range": [5, 1000]
+        "transform": "sqrt",
+        "domain": [5, 2000],
+        "range": [5, 2000]
       },
       "color": {
         "field": "subject",
-        "range": ["#03c03c", "#806680", "#d3cefc", "#338cc7", "#eeee44",
-          "#696969", "#e4efe9", "#67001a", "#d3bec2", "#e5d2e9",
-          "#f8a3cc", "#a87e85", "#a174fd", "#FFFFFF", "#25382d",
-          "#79847e", "#f9f7f4", "#151f19", "#3a506d", "#fe3445",
-          "#d34d45", "#a43d45", "#a43d20"],
-        // "range": "category10",
-        "domain": [-2047, 2047],
-      },
-      "filter" : {
-        "field" : "subject",
-        "lambda" : `value => console.log(value)`
+        "range": "category10",
+        "domain": [-2047, 2047]
       }
-      // "color" : {
-      //   constant :  "#FFFFFF"
-      // }
-      // filter: {
-      //   field: "size",
-      //   op: "gt",
-      //   a: 100,
-      // }
     }
   };
-  //list of ids 1 - 100000
-  var ids_1 = [];
-  var ids_2 = [];
-  for (var i = 1; i < 500000; i++) {
-    ids_1.push(i.toString());
-  }
-
-  //list of ids 1 - 20000 increment by 2
-  for (var i = 1; i < 20000; i++) {
-    ids_2.push(i.toString());
-  }
-  const colors = [
-    //    JSON.parse(JSON.stringify(prefs.encoding.color)),
-    {
-      "field": 'quantity',
-      "range": 'ylorrd',
-      //      "domain": 'progressive',
-    },
-  ]
 
   const scatterplot = new Scatterplot("#deepscatter")
   scatterplot.plotAPI(prefs).then(d => scatterplot.plotAPI(prefs));
@@ -229,6 +267,83 @@
   }
 
   )
+
+  select("#save-svg").on("click", function (e) {
+
+    scatterplot.make_big_png(1, 1e8, 100, 1, "canvas");
+
+  });
+
+  select("#save-svg-all").on("click", function (e) {
+    // scatterplot.make_big_png(Math.ceil(scatterplot._zoom.transform.k), 1e8, 1000, 2, "canvas_whole");
+    scatterplot.make_big_png(13, 1e8, 200, 2, "canvas_whole");
+  });
+
+
+  select("#search").on("click", function (e) {
+    var label = document.getElementById("cat-select").value;
+    var keyword = document.getElementById("keyword").value;
+    if (keyword !== undefined) {
+      var keyword_lower = keyword.toLowerCase();
+    }
+    if (label !== "") {
+      var new_coding = null;
+      if (label === 'subject') {
+        new_coding = {
+          // eslint-disable-next-line
+          "encoding": {
+            filter: {
+              field: "subject",
+              lambda: `value => String(value).toLowerCase().includes("${keyword_lower}")`
+            }
+          }
+        }
+      }
+      else if (label === "size") {
+        new_coding = {
+          // eslint-disable-next-line
+          "encoding": {
+            filter: {
+              field: "size",
+              op: 'gt',
+              a: keyword
+            }
+          }
+        }
+      }
+      else {
+        new_coding = {
+          // eslint-disable-next-line
+          "encoding": {
+            filter: {
+              field: "paper_id",
+              op: 'eq',
+              a: keyword
+            }
+          }
+        }
+      }
+
+      scatterplot.plotAPI(new_coding).then(d => scatterplot.plotAPI(new_coding));
+    }
+
+  }
+
+  )
+
+  document.addEventListener('contextmenu', (e) => {
+    document.getElementById("rmenu").className = "show";
+    document.getElementById("rmenu").style.top = e.clientY + 'px';
+    document.getElementById("rmenu").style.left = e.clientX + 'px';
+
+    window.event.returnValue = false;
+
+  });
+
+
+  document.addEventListener('click', (e) => {
+    document.getElementById("rmenu").className = "hide";
+  })
 
 
   document.getElementById("return").addEventListener("click", () => plot.plotAPI({ encoding: { filter: {} } }));

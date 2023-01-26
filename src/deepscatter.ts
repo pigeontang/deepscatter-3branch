@@ -283,7 +283,7 @@ export default class Scatterplot {
     setTimeout(() => ctx.clearRect(0, 0, 10_000, 10_000), 17 * 400);
   }
 
-  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, download_name="gallery") {
+  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, method = 1, download_name = "gallery") {
     await this._root.download_to_depth(points);
     const { width, height } = this._renderer;
     this.plotAPI({ duration: 0 });
@@ -293,10 +293,14 @@ export default class Scatterplot {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const corners = this._zoom.current_corners();
+    var corners = this._zoom.current_corners();
     const current_zoom = this._zoom.transform.k;
-    const xstep = (corners.x[1] - corners.x[0]) / xtimes;
-    const ystep = (corners.y[1] - corners.y[0]) / xtimes;
+    if (method === 2) {
+      corners.x = [-64473, 76698];
+      corners.y = [-92314, 67908];
+    }
+    var xstep = (corners.x[1] - corners.x[0]) / xtimes;
+    var ystep = (corners.y[1] - corners.y[0]) / xtimes;
 
     const p: Promise<void> = new Promise((resolve, reject) => {
       for (let i = 0; i < xtimes; i++) {
@@ -350,7 +354,7 @@ export default class Scatterplot {
               if (i == xtimes - 1 && j === xtimes - 1) {
                 resolve();
               }
-            }, timeper / 2);
+            }, timeper);
           }, i * timeper * xtimes + j * timeper);
         }
       }
@@ -361,7 +365,7 @@ export default class Scatterplot {
       // Create an anchor, and set the href value to our data URL
       const createEl = document.createElement('a');
       createEl.href = canvasUrl;
-      createEl.style = 'position:fixed;top:40vh;left:40vw;z-index:999;';
+      createEl.style = 'background-color:black;position:fixed;top:40vh;left:40vw;z-index:999;';
       // This is the name of our downloaded file
       createEl.download = download_name;
 
