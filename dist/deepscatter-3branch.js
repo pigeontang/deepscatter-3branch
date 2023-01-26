@@ -30617,6 +30617,7 @@ class Scatterplot {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     var corners = this._zoom.current_corners();
     this._zoom.transform.k;
+    console.log(corners);
     if (method === 2) {
       corners.x = [-64473, 76698];
       corners.y = [-92314, 67908];
