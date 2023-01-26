@@ -30621,11 +30621,14 @@ class Scatterplot {
       corners.x = [-64473, 76698];
       corners.y = [-92314, 67908];
     }
+    console.log(corners);
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
     const p = new Promise((resolve, reject) => {
       for (let i = 0; i < xtimes; i++) {
         for (let j = 0; j < xtimes; j++) {
+          console.log([corners.x[0] + xstep * i, corners.x[0] + xstep * (i + 1)]);
+          console.log([corners.y[0] + ystep * j, corners.y[0] + ystep * (j + 1)]);
           setTimeout(() => {
             this._zoom.zoom_to_bbox(
               {
