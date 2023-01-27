@@ -30605,7 +30605,7 @@ class Scatterplot {
     }
     setTimeout(() => ctx.clearRect(0, 0, 1e4, 1e4), 17 * 400);
   }
-  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, png_method = 1, download_name = "gallery") {
+  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, download_name = "gallery") {
     await this._root.download_to_depth(points);
     const { width, height } = this._renderer;
     this.plotAPI({ duration: 0 });
@@ -30619,10 +30619,6 @@ class Scatterplot {
     this._zoom.transform.k;
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
-    if (png_method === 2) {
-      corners.x[0] = -8e4;
-      corners.y[0] = -9e4;
-    }
     const p = new Promise((resolve, reject) => {
       for (let i = 0; i < xtimes; i++) {
         for (let j = 0; j < xtimes; j++) {
