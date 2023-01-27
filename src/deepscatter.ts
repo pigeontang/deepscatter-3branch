@@ -294,26 +294,22 @@ export default class Scatterplot {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     var corners = this._zoom.current_corners();
-    if (png_method === 2) {
-      corners =
-      {
-        "x": [
-          -64474,
-          76699
-        ],
-        "y": [
-          -109516.19870410365,
-          84101.19870410365
-        ]
-      }
-    }
 
     const current_zoom = this._zoom.transform.k;
 
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
+    
+    if (png_method === 2) {
 
-
+      // const x_aes = this._renderer.aes.dim("x").current;
+      // const y_aes = this._renderer.aes.dim("y").current;
+      // const { x_, y_ } = this._zoom.scales();
+      corners.x[0] = -80000;
+      corners.y[0] = -90000;
+      // x [-64474, 76699]
+      // y [-87701, 62286]
+    }
 
     const p: Promise<void> = new Promise((resolve, reject) => {
       for (let i = 0; i < xtimes; i++) {
@@ -365,7 +361,7 @@ export default class Scatterplot {
                 ctx.putImageData(imageData, width * i, height * j);
                 //                ctx?.strokeRect(width * i, height * j, width, height)
               });
-              if (i == xtimes - 1 && j === xtimes - 1) {
+              if (i === xtimes - 1 && j === xtimes - 1) {
                 resolve();
               }
             }, timeper / 2);

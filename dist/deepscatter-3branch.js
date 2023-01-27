@@ -30616,21 +30616,13 @@ class Scatterplot {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     var corners = this._zoom.current_corners();
-    if (png_method === 2) {
-      corners = {
-        "x": [
-          -64474,
-          76699
-        ],
-        "y": [
-          -109516.19870410365,
-          84101.19870410365
-        ]
-      };
-    }
     this._zoom.transform.k;
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
+    if (png_method === 2) {
+      corners.x[0] = -8e4;
+      corners.y[0] = -9e4;
+    }
     const p = new Promise((resolve, reject) => {
       for (let i = 0; i < xtimes; i++) {
         for (let j = 0; j < xtimes; j++) {
@@ -30672,7 +30664,7 @@ class Scatterplot {
                 );
                 ctx.putImageData(imageData, width * i, height * j);
               });
-              if (i == xtimes - 1 && j === xtimes - 1) {
+              if (i === xtimes - 1 && j === xtimes - 1) {
                 resolve();
               }
             }, timeper / 2);

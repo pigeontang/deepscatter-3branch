@@ -131,18 +131,18 @@
     "zoom_balance": 0.3, // Rate at which points increase size. https://observablehq.com/@bmschmidt/zoom-strategies-for-huge-scatterplots-with-three-js
     "point_size": 0.01, // Default point size before application of size scaling
     "background_color": "#000000",
-    "click_function": "select('#id-box').html(`<span>Paper ID: </span><p><em style='color:blue'>${datum.paper_id}</em></p><span>Title: </span><p><em style='color:blue'>${datum.title}</em></p><p>Published Year: <em style='color:blue'>${datum.published_year}</em></p><p>Subject: <em style='color:blue'>${datum.subject}</em></p>`);",
+    "click_function": "select('#id-box').html(`<span>Paper ID: </span><p><em style='color:blue'>${datum.x} ${datum.y}</em></p><span>Title: </span><p><em style='color:blue'>${datum.title}</em></p><p>Published Year: <em style='color:blue'>${datum.published_year}</em></p><p>Subject: <em style='color:blue'>${datum.subject}</em></p>`);",
     "encoding": {
 
       "x": {
         field: "x",
-        "transform" : "literal",
+        "transform": "literal",
         "domain": [-100000, 100000]
       },
 
       "y": {
         field: "y",
-        "transform" : "literal",
+        "transform": "literal",
         "domain": [-100000, 100000]
       },
       "size": {
@@ -280,9 +280,11 @@
 
   select("#save-svg-all").on("click", function (e) {
     // scatterplot.make_big_png(Math.ceil(scatterplot._zoom.transform.k), 1e8, 1000, 2, "canvas_whole");
-    scatterplot.make_big_png(3, 1e8, 2000, 2, "canvas_whole");
+    //const { width, height } = scatterplot._renderer;
+    //console.log(width, height)
+    //scatterplot._zoom.zoom_to_bbox({x: [-50000, 0], y: [-50000, 0]}, 2000 , 1);
+    scatterplot.make_big_png(7, 1e8, 200, 2, "canvas_whole");
   });
-
 
   select("#search").on("click", function (e) {
     var label = document.getElementById("cat-select").value;

@@ -119,7 +119,6 @@ export default class Zoom {
       .translate(width / 2, height / 2)
       .scale(1 / buffer / Math.max((x1 - x0) / width, (y1 - y0) / height))
       .translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
-
     canvas.transition().duration(duration).call(zoomer.transform, t);
   }
 
@@ -136,10 +135,10 @@ export default class Zoom {
       .on('zoom', (event) => {
         try {
           document.getElementById('tooltipcircle').remove();
-        } catch (error) {}
+        } catch (error) { }
         this.transform = event.transform;
         this.restart_timer(10 * 1000);
-        
+
         this.scatterplot.on_zoom?.(event.transform)
       });
 
@@ -200,14 +199,14 @@ export default class Zoom {
       };
       const annotations: Annotation[] = d
         ? [
-            {
-              x: event.layerX,
-              y: event.layerY,
-              data: d,
-              dx: 0,
-              dy: 30,
-            },
-          ]
+          {
+            x: event.layerX,
+            y: event.layerY,
+            data: d,
+            dx: 0,
+            dy: 30,
+          },
+        ]
         : [];
 
       const { x_, y_ } = this.scales();
