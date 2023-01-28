@@ -30617,7 +30617,6 @@ class Scatterplot {
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
     var xlooptimes = xtimes, ylooptimes = xtimes;
-    console.log(corners);
     if (save_method === 2) {
       xstep = corners.x[1] - corners.x[0];
       ystep = corners.y[1] - corners.y[0];
@@ -30636,7 +30635,6 @@ class Scatterplot {
     }
     canvas.setAttribute("width", (xlooptimes * width).toString());
     canvas.setAttribute("height", (ylooptimes * height).toString());
-    console.log(xlooptimes, ylooptimes, ystep);
     const p = new Promise((resolve, reject) => {
       for (let i = 0; i < xlooptimes; i++) {
         for (let j = 0; j < ylooptimes; j++) {
