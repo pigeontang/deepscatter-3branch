@@ -296,17 +296,28 @@ export default class Scatterplot {
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
     var xlooptimes = xtimes,
       ylooptimes = xtimes;
+    console.log(corners);
     if (save_method === 2) {
       xstep = corners.x[1] - corners.x[0];
       ystep = corners.y[1] - corners.y[0];
-      corners.x = [-90000, 90000]
-      corners.y = [-90000, 90000]
-      xlooptimes = Math.ceil(180000 / xstep);
-      ylooptimes = Math.ceil(180000 / ystep);
+      if (corners.x[1] - corners.x[0] > 145000) {
+        xlooptimes = 1
+      }
+      else {
+        xlooptimes = Math.ceil(150000 / xstep);
+      }
+      if (corners.y[1] - corners.y[0] > 145000) {
+        xlooptimes = 1
+      }
+      else {
+        ylooptimes = Math.ceil(155000 / ystep);
+      }
+      corners.x = [-70000, 80000]
+      corners.y = [-90000, 70000]
     }
     canvas.setAttribute('width', (xlooptimes * width).toString());
     canvas.setAttribute('height', (ylooptimes * height).toString());
-
+    console.log(xlooptimes, ylooptimes, ystep)
     // const current_zoom = this._zoom.transform.k;
     const p: Promise<void> = new Promise((resolve, reject) => {
       for (let i = 0; i < xlooptimes; i++) {
@@ -373,6 +384,7 @@ export default class Scatterplot {
       const createEl = document.createElement('a');
       createEl.href = canvasUrl;
       createEl.style = 'background-color:black;position:fixed;top:40vh;left:40vw;z-index:999;';
+      createEl.style.backgroundColor = "black";
       // This is the name of our downloaded file
       createEl.download = download_name;
 

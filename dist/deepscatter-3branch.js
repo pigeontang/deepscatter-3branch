@@ -30617,16 +30617,26 @@ class Scatterplot {
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
     var xlooptimes = xtimes, ylooptimes = xtimes;
+    console.log(corners);
     if (save_method === 2) {
       xstep = corners.x[1] - corners.x[0];
       ystep = corners.y[1] - corners.y[0];
-      corners.x = [-9e4, 9e4];
-      corners.y = [-9e4, 9e4];
-      xlooptimes = Math.ceil(18e4 / xstep);
-      ylooptimes = Math.ceil(18e4 / ystep);
+      if (corners.x[1] - corners.x[0] > 145e3) {
+        xlooptimes = 1;
+      } else {
+        xlooptimes = Math.ceil(15e4 / xstep);
+      }
+      if (corners.y[1] - corners.y[0] > 145e3) {
+        xlooptimes = 1;
+      } else {
+        ylooptimes = Math.ceil(155e3 / ystep);
+      }
+      corners.x = [-7e4, 8e4];
+      corners.y = [-9e4, 7e4];
     }
     canvas.setAttribute("width", (xlooptimes * width).toString());
     canvas.setAttribute("height", (ylooptimes * height).toString());
+    console.log(xlooptimes, ylooptimes, ystep);
     const p = new Promise((resolve, reject) => {
       for (let i = 0; i < xlooptimes; i++) {
         for (let j = 0; j < ylooptimes; j++) {
@@ -30681,6 +30691,7 @@ class Scatterplot {
       const createEl = document.createElement("a");
       createEl.href = canvasUrl;
       createEl.style = "background-color:black;position:fixed;top:40vh;left:40vw;z-index:999;";
+      createEl.style.backgroundColor = "black";
       createEl.download = download_name;
       createEl.click();
       createEl.remove();
