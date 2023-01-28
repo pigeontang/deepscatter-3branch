@@ -155,6 +155,12 @@
         "field": "subject",
         "range": "category10",
         "domain": [-2047, 2047]
+      },
+      "zoom": {
+        "bbox": {
+          "x": [-20000, 20000],
+          "y": [-35000, 30000],
+        }
       }
     }
   };
@@ -283,7 +289,7 @@
     //const { width, height } = scatterplot._renderer;
     //console.log(width, height)
     //scatterplot._zoom.zoom_to_bbox({x: [-50000, 0], y: [-50000, 0]}, 2000 , 1);
-    scatterplot.make_big_png(3, 1e8, 300, 2, "canvas_whole");
+    scatterplot.make_big_png(1, 1e8, 1000, 2, "canvas_whole");
   });
 
   select("#search").on("click", function (e) {

@@ -283,27 +283,34 @@ export default class Scatterplot {
     setTimeout(() => ctx.clearRect(0, 0, 10_000, 10_000), 17 * 400);
   }
 
-  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, download_name = "gallery") {
+  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, save_method = 2, download_name = "gallery") {
     await this._root.download_to_depth(points);
     const { width, height } = this._renderer;
     this.plotAPI({ duration: 0 });
     const canvas = document.createElement('canvas');
-    canvas.setAttribute('width', (xtimes * width).toString());
-    canvas.setAttribute('height', (xtimes * height).toString());
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     var corners = this._zoom.current_corners();
-
-    const current_zoom = this._zoom.transform.k;
-
     var xstep = (corners.x[1] - corners.x[0]) / xtimes;
     var ystep = (corners.y[1] - corners.y[0]) / xtimes;
+    var xlooptimes = xtimes,
+      ylooptimes = xtimes;
+    if (save_method === 2) {
+      xstep = corners.x[1] - corners.x[0];
+      ystep = corners.y[1] - corners.y[0];
+      corners.x = [-90000, 90000]
+      corners.y = [-90000, 90000]
+      xlooptimes = Math.ceil(180000 / xstep);
+      ylooptimes = Math.ceil(180000 / ystep);
+    }
+    canvas.setAttribute('width', (xlooptimes * width).toString());
+    canvas.setAttribute('height', (ylooptimes * height).toString());
 
-
+    // const current_zoom = this._zoom.transform.k;
     const p: Promise<void> = new Promise((resolve, reject) => {
-      for (let i = 0; i < xtimes; i++) {
-        for (let j = 0; j < xtimes; j++) {
+      for (let i = 0; i < xlooptimes; i++) {
+        for (let j = 0; j < ylooptimes; j++) {
           setTimeout(() => {
             this._zoom.zoom_to_bbox(
               {
@@ -351,11 +358,11 @@ export default class Scatterplot {
                 ctx.putImageData(imageData, width * i, height * j);
                 //                ctx?.strokeRect(width * i, height * j, width, height)
               });
-              if (i === xtimes - 1 && j === xtimes - 1) {
+              if (i === xlooptimes - 1 && j === ylooptimes - 1) {
                 resolve();
               }
             }, timeper / 2);
-          }, i * timeper * xtimes + j * timeper);
+          }, i * timeper * xlooptimes + j * timeper);
         }
       }
     });
@@ -373,6 +380,7 @@ export default class Scatterplot {
       createEl.click();
       createEl.remove();
     });
+
   }
   /**
    * Destroy the scatterplot and release all associated resources.
