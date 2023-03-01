@@ -4,12 +4,13 @@ import { max, range, sum } from 'd3-array';
 import merge from 'lodash.merge';
 import Zoom from './interaction';
 import { ReglRenderer } from './regl_rendering';
-import { Dataset } from './Dataset';
-import type { APICall, onZoomCallback } from './types';
+import { Dataset, QuadtileSet } from './Dataset';
 import type { StructRowProxy } from 'apache-arrow';
 import type { FeatureCollection } from 'geojson';
-import { LabelMaker } from './label_rendering';
+import { LabelMaker, LabelOptions } from './label_rendering';
 import { Renderer } from './rendering';
+import { ArrowTile, QuadTile, Tile } from './tile';
+import type { ConcreteAesthetic } from './StatefulAesthetic';
 
 // DOM elements that deepscatter uses.
 const base_elements = [
@@ -31,8 +32,12 @@ const base_elements = [
   },
 ];
 
-export default class Scatterplot {
-  public _renderer: ReglRenderer;
+/**
+ * The core type of the module is a single scatterplot that manages
+ * all data and renderering.
+ */
+export default class Scatterplot<T extends Tile> {
+  public _renderer: ReglRenderer<T>;
   public width: number;
   public height: number;
   public _root: Dataset<any>;
@@ -45,12 +50,21 @@ export default class Scatterplot {
   // The queue of draw calls are a chain of promises.
   private plot_queue: Promise<void> = Promise.resolve(0);
   public prefs: APICall;
+  // Whether the scatterplot has finished loading.
   ready: Promise<void>;
   public click_handler: ClickFunction;
   public tooltip_handler: TooltipHTML;
+  public label_click_handler: LabelClick;
   // In order to preserve JSON serializable nature of prefs, the consumer directly sets this
   public on_zoom?: onZoomCallback;
-
+  private mark_ready: () => void = function () {
+    /*pass*/
+  };
+  /**
+   * @param selector A DOM selector for the div in which the scatterplot will live.
+   * @param width The width of the scatterplot (in pixels)
+   * @param height The height of the scatterplot (in pixels)
+   */
   constructor(selector: string, width: number, height: number) {
     this.bound = false;
     if (selector !== undefined) {
@@ -58,22 +72,16 @@ export default class Scatterplot {
     }
     this.width = width;
     this.height = height;
-    // Unresolvable.
-    this.ready = new Promise(() => {
-      /*pass*/
+    // mark_ready is called when the scatterplot can start drawing..
+    this.ready = new Promise((resolve, reject) => {
+      this.mark_ready = resolve;
     });
     this.click_handler = new ClickFunction(this);
     this.tooltip_handler = new TooltipHTML(this);
-    this.prefs = {
-      zoom_balance: 0.35,
-      duration: 2000,
-      max_points: 100,
-      encoding: {},
-      point_size: 1, // base size before aes modifications.
-      alpha: 40, // Overall screen saturation target.
-    };
-    //    this.d3 = { select };
+    this.label_click_handler = new LabelClick(this);
+    this.prefs = { ...default_API_call };
   }
+
   /**
    * @param selector A selector for the root element of the deepscatter; must already exist.
    * @param width Width of the plot, in pixels.
@@ -110,12 +118,19 @@ export default class Scatterplot {
         .style('left', 0)
         .style('pointer-events', d.id === 'deepscatter-svg' ? 'auto' : 'none');
 
-      container
+      const el = container
         .append(d.nodetype)
         .attr('id', d.id)
         .attr('width', width || window.innerWidth)
         .attr('height', height || window.innerHeight);
 
+      if (d.nodetype === 'svg') {
+        // SVG z-order can't be changed on the fly, so we
+        // preset the order to make label rects show up on top
+        // of mouseover points.
+        el.append('g').attr('id', 'mousepoints');
+        el.append('g').attr('id', 'labelrects');
+      }
       this.elements.push(container);
     }
     this.bound = true;
@@ -125,7 +140,7 @@ export default class Scatterplot {
    *
    * @param name The name of the new column to be created. If it already exists, this will throw an error in invocation
    * @param codes The codes to be assigned labels. This can be either a list of ids (in which case all ids will have the value 1.0 assigned)
-   *   **or** a keyed of values like {'Rome': 3, 'Vienna': 13} in which case the numeric values will be used.
+   *   **or** a keyed of values like `{'Rome': 3, 'Vienna': 13}` in which case the numeric values will be used.
    * @param key_field The field in which to look for the identifiers.
    */
   add_identifier_column(
@@ -138,19 +153,25 @@ export default class Scatterplot {
       : codes;
     this._root.add_label_identifiers(true_codes, name, key_field);
   }
-
   async add_labels_from_url(
     url: string,
     name: string,
     label_key: string,
-    size_key: string | undefined
-  ) {
-    const features = await fetch(url)
-      .then((data) => data.json() as Promise<FeatureCollection>)
+    size_key: string | undefined,
+    options: LabelOptions
+  ): Promise<void> {
+    await this.ready;
+    await this._root.promise;
+    return fetch(url)
+      .then(async (data) => {
+        const features = await (data.json() as Promise<FeatureCollection>);
+        this.add_labels(features, name, label_key, size_key, options);
+      })
       .catch((error) => {
+        console.error('Broken addition of ', name);
+        //        this.stop_labellers();
         console.log(error);
       });
-    this.add_labels(features, name, label_key, size_key);
   }
   /**
    *
@@ -158,6 +179,7 @@ export default class Scatterplot {
    * @param name A unique key to associate with this labelset. Labels can be enabled or disabled using this key.
    * @param label_key The text field in which the labels are stored in the geojson object.
    * @param size_key A field in the dataset to associate with the *size* of the labels.
+   * @param label_options Additional custom passed to the labeller.
    *
    * Usage:
    *
@@ -175,9 +197,10 @@ export default class Scatterplot {
     features: FeatureCollection,
     name: string,
     label_key: string,
-    size_key: string | undefined
+    size_key: string | undefined,
+    options: LabelOptions = {}
   ) {
-    const labels = new LabelMaker(this.div, this);
+    const labels = new LabelMaker(this, name, options);
     labels.update(features, label_key, size_key);
     this.secondary_renderers[name] = labels;
     this.secondary_renderers[name].start();
@@ -215,7 +238,7 @@ export default class Scatterplot {
 
     this._renderer.initialize();
 
-    this.ready = this._root.promise;
+    void this._root.promise.then(() => this.mark_ready());
     return this.ready;
   }
 
@@ -251,6 +274,10 @@ export default class Scatterplot {
   */
 
   visualize_tiles() {
+    /**
+     * Draws a set of rectangles to the screen to illustrate the currently
+     * loaded tiles. Useful for debugging and illustration.
+     */
     const map = this;
     const ctx = map.elements[2].selectAll('canvas').node().getContext('2d');
 
@@ -283,44 +310,29 @@ export default class Scatterplot {
     setTimeout(() => ctx.clearRect(0, 0, 10_000, 10_000), 17 * 400);
   }
 
-  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, save_method = 2, download_name = "gallery") {
+  async make_big_png(xtimes = 3, points = 1e7, timeper = 100) {
+    // Run starting at no zoom.
+    // xtimes: the width/height will be this multiplier of screen width.
+    // points: pre-download to this depth.
     await this._root.download_to_depth(points);
     const { width, height } = this._renderer;
     this.plotAPI({ duration: 0 });
     const canvas = document.createElement('canvas');
+    canvas.setAttribute('width', (xtimes * width).toString());
+    canvas.setAttribute('height', (xtimes * height).toString());
     const ctx = canvas.getContext('2d');
+
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    var corners = this._zoom.current_corners();
-    var xstep = (corners.x[1] - corners.x[0]) / xtimes;
-    var ystep = (corners.y[1] - corners.y[0]) / xtimes;
-    var xlooptimes = xtimes,
-      ylooptimes = xtimes;
-    if (save_method === 2) {
-      xstep = corners.x[1] - corners.x[0];
-      ystep = corners.y[1] - corners.y[0];
-      if (corners.x[1] - corners.x[0] > 145000) {
-        xlooptimes = 1
-      }
-      else {
-        xlooptimes = Math.ceil(150000 / xstep);
-      }
-      if (corners.y[1] - corners.y[0] > 145000) {
-        xlooptimes = 1
-      }
-      else {
-        ylooptimes = Math.ceil(155000 / ystep);
-      }
-      corners.x = [-70000, 80000]
-      corners.y = [-90000, 70000]
-    }
-    canvas.setAttribute('width', (xlooptimes * width).toString());
-    canvas.setAttribute('height', (ylooptimes * height).toString());
-    
-    // const current_zoom = this._zoom.transform.k;
+
+    const corners = this._zoom.current_corners();
+    const current_zoom = this._zoom.transform.k;
+    const xstep = (corners.x[1] - corners.x[0]) / xtimes;
+    const ystep = (corners.y[1] - corners.y[0]) / xtimes;
+
     const p: Promise<void> = new Promise((resolve, reject) => {
-      for (let i = 0; i < xlooptimes; i++) {
-        for (let j = 0; j < ylooptimes; j++) {
+      for (let i = 0; i < xtimes; i++) {
+        for (let j = 0; j < xtimes; j++) {
           setTimeout(() => {
             this._zoom.zoom_to_bbox(
               {
@@ -330,7 +342,6 @@ export default class Scatterplot {
               timeper / 5,
               1
             );
-
             setTimeout(() => {
               this._renderer.fbos.colorpicker.use(() => {
                 this._renderer.render_all(this._renderer.props);
@@ -341,6 +352,7 @@ export default class Scatterplot {
                   width,
                   height
                 ) as Uint8Array;
+                //console.log(i, j, sum(pixels));
 
                 // https://stackoverflow.com/questions/41969562/how-can-i-flip-the-result-of-webglrenderingcontext-readpixels
                 const halfHeight = (height / 2) | 0; // the | 0 keeps the result an int
@@ -368,30 +380,28 @@ export default class Scatterplot {
                 ctx.putImageData(imageData, width * i, height * j);
                 //                ctx?.strokeRect(width * i, height * j, width, height)
               });
-              if (i === xlooptimes - 1 && j === ylooptimes - 1) {
+              if (i == xtimes - 1 && j === xtimes - 1) {
                 resolve();
               }
             }, timeper / 2);
-          }, i * timeper * xlooptimes + j * timeper);
+          }, i * timeper * xtimes + j * timeper);
         }
       }
     });
 
     p.then(() => {
-      const canvasUrl = canvas.toDataURL('image/png', 1.0);
+      const canvasUrl = canvas.toDataURL();
       // Create an anchor, and set the href value to our data URL
       const createEl = document.createElement('a');
       createEl.href = canvasUrl;
-      createEl.style = 'background-color:black;position:fixed;top:40vh;left:40vw;z-index:999;';
-      createEl.style.backgroundColor = "black";
+      createEl.style = 'position:fixed;top:40vh;left:40vw;z-index:999;';
       // This is the name of our downloaded file
-      createEl.download = download_name;
+      createEl.download = 'canvas';
 
       // Click the download button, causing a download, and then remove it
       createEl.click();
       createEl.remove();
     });
-
   }
   /**
    * Destroy the scatterplot and release all associated resources.
@@ -416,15 +426,27 @@ export default class Scatterplot {
     merge(this.prefs, prefs);
   }
 
+  public stop_labellers() {
+    for (const [k, v] of Object.entries(this.secondary_renderers)) {
+      // Stop any existing labels
+      if (v && v['label_key'] !== undefined) {
+        this.secondary_renderers[k].stop();
+        this.secondary_renderers[k].delete();
+        this.secondary_renderers[k] = undefined;
+      }
+    }
+  }
+
   /**
    *
+   *
    * @param dimension The name of the encoding dimension to access
-   * information about
+   * information about. E.g. ("color", "x", etc.)
    * @returns
    */
 
-  public dim(dimension: string) {
-    return this._renderer.aes.dim(dimension).current;
+  public dim(dimension: string): ConcreteAesthetic {
+    return this._renderer.aes.dim(dimension).current as T;
   }
 
   set tooltip_html(func) {
@@ -435,6 +457,15 @@ export default class Scatterplot {
     /* PUBLIC see set tooltip_html */
     return this.tooltip_handler.f;
   }
+
+  set label_click(func) {
+    this.label_click_handler.f = func;
+  }
+
+  get label_click() {
+    return this.label_click_handler.f.bind(this.label_click_handler);
+  }
+
   set click_function(func) {
     this.click_handler.f = func;
   }
@@ -444,13 +475,6 @@ export default class Scatterplot {
   }
 
   async plotAPI(prefs: APICall): Promise<void> {
-    if (
-      prefs.encoding &&
-      prefs.encoding.filter &&
-      prefs.encoding.filter.domain
-    ) {
-      throw new Error('Filtering is not supported in the API');
-    }
     await this.plot_queue;
     this.plot_queue = this.unsafe_plotAPI(prefs);
     return await this.plot_queue;
@@ -459,10 +483,14 @@ export default class Scatterplot {
   /**
    * This is the main plot entry point: it's unsafe to fire multiple
    * times in parallel because the transition state can get all borked up.
+   * plotAPI wraps it in an await wrapper.
    *
    * @param prefs The preferences
    */
   private async unsafe_plotAPI(prefs: APICall): Promise<void> {
+    if (prefs === null) {
+      return;
+    }
     if (prefs.click_function) {
       this.click_function = Function('datum', prefs.click_function);
     }
@@ -470,6 +498,19 @@ export default class Scatterplot {
       this.tooltip_html = Function('datum', prefs.tooltip_html);
     }
 
+    if (prefs.labels) {
+      const { url, label_field, size_field } = prefs.labels;
+      const name = (prefs.labels.name || url) as string;
+      if (!this.secondary_renderers[name]) {
+        this.stop_labellers();
+        this.add_labels_from_url(url, name, label_field, size_field).catch(
+          (error) => {
+            console.error('Label addition failed.');
+            console.error(error);
+          }
+        );
+      }
+    }
     this.update_prefs(prefs);
 
     // Some things have to be done *before* we can actually run this;
@@ -504,11 +545,6 @@ export default class Scatterplot {
     await this._root.promise;
 
     this._renderer.render_props.apply_prefs(this.prefs);
-
-    // Doesn't block.
-    if (prefs.mutate) {
-      this._root.apply_mutations(prefs.mutate);
-    }
 
     const { width, height } = this;
     this.update_prefs(prefs);
@@ -584,6 +620,18 @@ export default class Scatterplot {
     }
   }
 
+  sample_points(n = 10): Record<string, number | string>[] {
+    const vals: Record<string, number | string>[] = [];
+    for (const p of this._root.points(this._zoom.current_corners())) {
+      vals.push({ ...p });
+      if (vals.length >= n * 3) {
+        break;
+      }
+    }
+    vals.sort((a, b) => Number(a.ix) - Number(b.ix));
+    return vals.slice(0, n);
+  }
+
   contours(aes) {
     const data = this._renderer.calculate_contours(aes);
     const { x, y, x_, y_ } = this._zoom.scales();
@@ -608,29 +656,35 @@ export default class Scatterplot {
   }
 }
 
-abstract class SettableFunction<FuncType> {
-  // A function that can be set by a string or directly with a function,
-  // Used for handling interaction
-  public _f: undefined | ((arg0: StructRowProxy) => FuncType);
+/**
+ A function that can be set by a string or directly with a function
+*/
+abstract class SettableFunction<
+  FuncType,
+  ArgType = StructRowProxy,
+  Tiletype extends Tile = QuadTile
+> {
+  public _f:
+    | undefined
+    | ((datum: ArgType, plot: Scatterplot<Tiletype>) => FuncType);
   public string_rep: string;
-  abstract default: (arg0: StructRowProxy) => FuncType;
+  abstract default: (datum: ArgType, plot: Scatterplot | undefined) => FuncType;
   public plot: Scatterplot;
   constructor(plot: Scatterplot) {
     this.string_rep = '';
     this.plot = plot;
   }
-  get f(): (arg0: StructRowProxy) => FuncType {
+  get f(): (datum: ArgType, plot: Scatterplot) => FuncType {
     if (this._f === undefined) {
       return this.default;
     }
     return this._f;
   }
-  set f(f: string | ((arg0: StructRowProxy) => FuncType)) {
+  set f(f: string | ((datum: ArgType, plot: Scatterplot) => FuncType)) {
     if (typeof f === 'string') {
       if (this.string_rep !== f) {
         this.string_rep = f;
-        //@ts-ignore
-        this._f = Function('datum', f);
+        this._f = Function('datum', 'plot', f);
       }
     } else {
       this._f = f;
@@ -638,33 +692,73 @@ abstract class SettableFunction<FuncType> {
   }
 }
 
+import type { GeoJsonProperties } from 'geojson';
+import { Aesthetic } from './Aesthetic';
+import { default_API_call } from './defaults';
+
+class LabelClick extends SettableFunction<void, GeoJsonProperties> {
+  default(
+    feature: GeoJsonProperties,
+    plot = undefined,
+    labelset: LabelMaker = undefined
+  ) {
+    let filter: LambdaChannel | null | OpChannel;
+    if (feature === null) {
+      return;
+    }
+    if (feature.__activated == true) {
+      filter = null;
+      feature.__activated = undefined;
+    } else {
+      feature.__activated = true;
+      filter = {
+        field: labelset.label_key,
+        lambda: `d => d === '${feature.properties[labelset.label_key]}'`,
+      };
+    }
+    const thisis = this;
+    // console.log({ thisis, p: this.plot });
+    void this.plot.plotAPI({
+      encoding: { filter },
+    });
+  }
+}
+
 class ClickFunction extends SettableFunction<void> {
   //@ts-ignore bc https://github.com/microsoft/TypeScript/issues/48125
-  default(datum: StructRowProxy) {
-    console.log({ ...datum });
+  default(datum: StructRowProxy, plot = undefined) {
+    // console.log({ ...datum });
+    return;
   }
 }
 
 class TooltipHTML extends SettableFunction<string> {
   //@ts-ignore bc https://github.com/microsoft/TypeScript/issues/48125
-  default(point: StructRowProxy) {
+  default(point: StructRowProxy, plot = undefined) {
     // By default, this returns a
     let output = '<dl>';
-    const nope = new Set(['x', 'y', 'ix', null, 'tile_key']);
+    const nope: Set<string | null | number | symbol> = new Set([
+      'x',
+      'y',
+      'ix',
+      null,
+      'tile_key',
+    ]);
+    //    console.log({ ...point });
     for (const [k, v] of point) {
-      if (nope.has(k)) {
-        continue;
-      }
       // Don't show missing data.
       if (v === null) {
+        continue;
+      }
+      if (nope.has(k)) {
         continue;
       }
       // Don't show empty data.
       if (v === '') {
         continue;
       }
-      output += ` <dt>${k}</dt>\n`;
-      output += `   <dd>${v}<dd>\n`;
+      output += ` <dt>${String(k)}</dt>\n`;
+      output += `   <dd>${String(v)}<dd>\n`;
     }
     return `${output}</dl>\n`;
   }

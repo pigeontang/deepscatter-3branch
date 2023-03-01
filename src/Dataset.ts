@@ -1,21 +1,16 @@
 // A Dataset manages the production and manipulation of *tiles*.
 
 import { Tile, Rectangle, QuadTile, ArrowTile, p_in_rect } from './tile';
-import { range, min, max, bisectLeft, extent } from 'd3-array';
-import * as Comlink from 'comlink';
-
-import { APICall, PointUpdate } from './types';
+import { range, min, max, bisectLeft, extent, sum } from 'd3-array';
 import Scatterplot from './deepscatter';
 import {
   RecordBatch,
   StructRowProxy,
   Table,
-  Vector,
   vectorFromArray,
-  makeVector,
   Data,
-  makeData,
-  Float,
+  Schema,
+  tableFromIPC,
 } from 'apache-arrow';
 type Key = string;
 
@@ -31,13 +26,24 @@ export abstract class Dataset<T extends Tile> {
   abstract get extent(): Rectangle;
   abstract promise: Promise<void>;
   private extents: Record<string, [number, number]> = {};
-
+  public _ix_seed: number = 0;
+  public _schema?: Schema;
   constructor(plot: Scatterplot) {
     this.plot = plot;
+    // If a linear identifier does not exist in the passed data, we add the ix columns in the order that
+    // they are passed.
   }
 
   get highest_known_ix(): number {
     return this.root_tile.highest_known_ix;
+  }
+
+  get table(): Table {
+    return new Table(
+      this.map((d) => d)
+        .filter((d) => d.ready)
+        .map((d) => d.record_batch)
+    );
   }
 
   static from_quadfeather(
@@ -64,11 +70,39 @@ export abstract class Dataset<T extends Tile> {
     if (this.extents[dimension]) {
       return this.extents[dimension];
     }
-    this.extents[dimension] = extent(
-      this.points(undefined, max_ix),
-      (d) => d[dimension]
-    );
-    return this.extents[dimension];
+    const dim = this._schema?.fields.find((d) => d.name === dimension);
+    if (dim !== undefined) {
+      let min: number | string | undefined = undefined;
+      let max: number | string | undefined = undefined;
+      const extent1 = dim.metadata.get('extent');
+      if (extent1) {
+        [min, max] = JSON.parse(extent1) as [number | string, number | string];
+      }
+      const mmin = dim.metadata.get('min');
+      if (mmin) {
+        min = JSON.parse(mmin) as number | string;
+      }
+      const mmax = dim.metadata.get('max');
+      if (mmax) {
+        max = JSON.parse(mmax) as number | string;
+      }
+      // Can pass min, max as strings for dates.
+      if (dim.type.typeId == 10 && typeof min === 'string') {
+        min = Number(new Date(min));
+      }
+      if (dim.type.typeId == 10 && typeof max === 'string') {
+        max = Number(new Date(max));
+      }
+      if (typeof max === 'string') {
+        throw new Error('Failed to parse min-max as numbers');
+      }
+      if (min !== undefined) {
+        return (this.extents[dimension] = [min as number, max as number]);
+      }
+    }
+    return (this.extents[dimension] = extent([
+      ...this.table.getChild(dimension),
+    ]));
   }
 
   *points(bbox: Rectangle | undefined, max_ix = 1e99) {
@@ -150,7 +184,31 @@ export abstract class Dataset<T extends Tile> {
 
   async schema() {
     await this.ready;
+    if (this._schema) {
+      return this._schema;
+    }
+    this._schema = this.root_tile.record_batch.schema;
     return this.root_tile.record_batch.schema;
+  }
+
+  add_tiled_column(field_name: string, buffer: Uint8Array): void {
+    const tb = tableFromIPC(buffer);
+    const records = {};
+    window.tb = tb;
+    for (let batch of tb.batches) {
+      const offsets = batch.getChild('data').data[0].valueOffsets;
+      const values = batch.getChild('data').data[0].children[0];
+      for (let i = 0; i < batch.data.length; i++) {
+        const tilename = batch.getChild('_tile').get(i);
+        records[tilename] = values.values.slice(offsets[i], offsets[i + 1]);
+      }
+    }
+    this.transformations[field_name] = function (tile) {
+      const { key } = tile;
+      const length = tile.record_batch.numRows;
+      const array = records[key];
+      return bind_column(tile.record_batch, field_name, array);
+    };
   }
 
   add_sparse_identifiers(field_name: string, ids: PointUpdate) {
@@ -257,7 +315,7 @@ export class QuadtileSet extends Dataset<QuadTile> {
 
   constructor(base_url: string, prefs: APICall, plot: Scatterplot) {
     super(plot);
-    this.root_tile = new QuadTile(base_url, '0/0/0', null, this, {});
+    this.root_tile = new QuadTile(base_url, '0/0/0', null, this, prefs);
     this.promise = this.root_tile.promise;
   }
 
@@ -304,7 +362,7 @@ export class QuadtileSet extends Dataset<QuadTile> {
 
     this.visit(callback);
 
-    scores.sort((a, b) => a[0] - b[0]);
+    scores.sort((a, b) => Number(a[0]) - Number(b[0]));
     while (scores.length > 0 && queue.size < queue_length) {
       const upnext = scores.pop();
       if (upnext === undefined) {
@@ -363,11 +421,14 @@ function check_overlap(tile: Tile, bbox: Rectangle): number {
   return area(intersection) / area(bbox);
 }
 
-function bind_column(
+export function bind_column(
   batch: RecordBatch,
   field_name: string,
   data: Float32Array
 ): RecordBatch {
+  if (data === undefined) {
+    throw new Error('Must pass data to bind_column');
+  }
   const current_keys: Set<string> = new Set(
     [...batch.schema.fields].map((d) => d.name)
   );
@@ -402,7 +463,7 @@ function supplement_identifiers(
   // A quick lookup before performing a costly string decode.
   const hashtab = new Set();
   for (const item of Object.keys(ids)) {
-    const code = [0, 1, 2, 3].map((i) => (item.charCodeAt(i) || '')).join('');
+    const code = [0, 1, 2, 3].map((i) => item.charCodeAt(i) || '').join('');
     hashtab.add(code);
   }
   const updatedFloatArray = new Float32Array(batch.numRows);

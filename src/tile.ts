@@ -14,16 +14,15 @@ import {
   tableFromIPC,
   tableToIPC,
   vectorFromArray,
-  table,
-  RecordBatchFromArrays,
   makeBuilder,
   makeVector,
   RecordBatch,
   Schema,
   Data,
   Field,
+  StructRowProxy,
 } from 'apache-arrow';
-
+import { bind_column } from './Dataset';
 import type { Dataset, QuadtileSet } from './Dataset';
 import Scatterplot from './deepscatter';
 type MinMax = [number, number];
@@ -311,7 +310,7 @@ export abstract class Tile {
     };
   }
 
-  [Symbol.iterator]() {
+  [Symbol.iterator](): IterableIterator<StructRowProxy> {
     return this.yielder();
   }
 
@@ -418,6 +417,10 @@ export class QuadTile extends Tile {
         }
         this._min_ix = Number(ixes.get(0));
         this.max_ix = Number(ixes.get(ixes.length - 1));
+        if (this._min_ix > this.max_ix) {
+          this.max_ix = this._min_ix + 1e5;
+          this._min_ix = 0;
+        }
         this.highest_known_ix = this.max_ix;
         //        this.update_master_dictionary_lookups();
       })
@@ -476,7 +479,7 @@ export class ArrowTile extends Tile {
   full_tab: Table;
   constructor(
     table: Table,
-    dataset: Dataset<this>,
+    dataset: Dataset<ArrowTile>,
     batch_num: number,
     plot: Scatterplot,
     parent = null
@@ -486,11 +489,32 @@ export class ArrowTile extends Tile {
     this._batch = table.batches[batch_num];
     this.download_state = 'Complete';
     this.batch_num = batch_num;
+    // On arrow tables, it's reasonable to just add a new index by order.
+    if (this._batch.getChild('ix') === null) {
+      //console.log('Manually setting ix');
+      const batch = this._batch;
+      //console.log({ batch, rows: batch.numRows });
+      const array = new Float32Array(batch.numRows);
+      //console.log('SEED', this.dataset._ix_seed);
+      const seed = this.dataset._ix_seed;
+      this.dataset._ix_seed += batch.numRows;
+      for (let i = 0; i < batch.numRows; i++) {
+        array[i] = i + seed;
+      }
+      this._min_ix = seed;
+      this._max_ix = seed + batch.numRows;
+      // This bubbles up to parents.
+      this.highest_known_ix = this._max_ix;
+      this._batch = bind_column(this.record_batch, 'ix', array);
+      // console.log('Updated batch to', this._batch);
+    }
+    // console.log(this._batch.getChild('x'));
     this._extent = {
       x: extent(this._batch.getChild('x')),
       y: extent(this._batch.getChild('y')),
     };
     this.parent = parent;
+
     const row_last = this._batch.get(this._batch.numRows - 1);
     if (row_last === null) {
       throw 'No rows in table';
@@ -505,13 +529,24 @@ export class ArrowTile extends Tile {
     this.highest_known_ix = Number(this.max_ix);
     this.create_children();
   }
-
   create_children() {
     let ix = this.batch_num * 4;
     while (++ix <= this.batch_num * 4 + 4) {
       if (ix < this.full_tab.batches.length) {
         this._children.push(
           new ArrowTile(this.full_tab, this.dataset, ix, this.plot, this)
+        );
+      }
+    }
+    for (let child of this._children) {
+      for (let dim of ['x', 'y'] as const) {
+        this._extent![dim][0] = Math.min(
+          this._extent![dim][0],
+          child._extent![dim][0]
+        );
+        this._extent![dim][1] = Math.max(
+          this._extent![dim][1],
+          child._extent![dim][1]
         );
       }
     }
