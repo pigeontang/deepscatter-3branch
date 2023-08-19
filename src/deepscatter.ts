@@ -310,29 +310,45 @@ export default class Scatterplot<T extends Tile> {
     setTimeout(() => ctx.clearRect(0, 0, 10_000, 10_000), 17 * 400);
   }
 
-  async make_big_png(xtimes = 3, points = 1e7, timeper = 100) {
-    // Run starting at no zoom.
-    // xtimes: the width/height will be this multiplier of screen width.
-    // points: pre-download to this depth.
+  async make_big_png(xtimes = 3, points = 1e7, timeper = 100, save_method = 2, download_name = "gallery") {
     await this._root.download_to_depth(points);
     const { width, height } = this._renderer;
     this.plotAPI({ duration: 0 });
     const canvas = document.createElement('canvas');
-    canvas.setAttribute('width', (xtimes * width).toString());
-    canvas.setAttribute('height', (xtimes * height).toString());
     const ctx = canvas.getContext('2d');
-
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    var corners = this._zoom.current_corners();
+    var xstep = (corners.x[1] - corners.x[0]) / xtimes;
+    var ystep = (corners.y[1] - corners.y[0]) / xtimes;
+    var xlooptimes = xtimes,
+      ylooptimes = xtimes;
+    if (save_method === 2) {
+      xstep = corners.x[1] - corners.x[0];
+      ystep = corners.y[1] - corners.y[0];
+      if (corners.x[1] - corners.x[0] > 145000) {
+        xlooptimes = 1
+      }
+      else {
+        xlooptimes = Math.ceil(150000 / xstep);
+      }
+      if (corners.y[1] - corners.y[0] > 145000) {
+        xlooptimes = 1
+      }
+      else {
+        ylooptimes = Math.ceil(160000 / ystep);
+      }
+      corners.x = [-70000, 80000]
+      corners.y = [-90000, 70000]
+    }
+    canvas.setAttribute('width', (xlooptimes * width).toString());
+    canvas.setAttribute('height', (ylooptimes * height).toString());
 
-    const corners = this._zoom.current_corners();
-    const current_zoom = this._zoom.transform.k;
-    const xstep = (corners.x[1] - corners.x[0]) / xtimes;
-    const ystep = (corners.y[1] - corners.y[0]) / xtimes;
-
+    // const current_zoom = this._zoom.transform.k;
     const p: Promise<void> = new Promise((resolve, reject) => {
-      for (let i = 0; i < xtimes; i++) {
-        for (let j = 0; j < xtimes; j++) {
+      for (let i = 0; i < xlooptimes; i++) {
+        for (let j = 0; j < ylooptimes; j++) {
+          console.log(i, j)
           setTimeout(() => {
             this._zoom.zoom_to_bbox(
               {
@@ -342,6 +358,7 @@ export default class Scatterplot<T extends Tile> {
               timeper / 5,
               1
             );
+
             setTimeout(() => {
               this._renderer.fbos.colorpicker.use(() => {
                 this._renderer.render_all(this._renderer.props);
@@ -352,7 +369,6 @@ export default class Scatterplot<T extends Tile> {
                   width,
                   height
                 ) as Uint8Array;
-                //console.log(i, j, sum(pixels));
 
                 // https://stackoverflow.com/questions/41969562/how-can-i-flip-the-result-of-webglrenderingcontext-readpixels
                 const halfHeight = (height / 2) | 0; // the | 0 keeps the result an int
@@ -380,28 +396,30 @@ export default class Scatterplot<T extends Tile> {
                 ctx.putImageData(imageData, width * i, height * j);
                 //                ctx?.strokeRect(width * i, height * j, width, height)
               });
-              if (i == xtimes - 1 && j === xtimes - 1) {
+              if (i == xlooptimes - 1 && j === ylooptimes - 1) {
                 resolve();
               }
             }, timeper / 2);
-          }, i * timeper * xtimes + j * timeper);
+          }, i * timeper * xlooptimes + j * timeper);
         }
       }
     });
 
     p.then(() => {
-      const canvasUrl = canvas.toDataURL();
+      const canvasUrl = canvas.toDataURL('image/png', 1.0);
       // Create an anchor, and set the href value to our data URL
       const createEl = document.createElement('a');
       createEl.href = canvasUrl;
-      createEl.style = 'position:fixed;top:40vh;left:40vw;z-index:999;';
+      createEl.style = 'background-color:black;position:fixed;top:40vh;left:40vw;z-index:999;';
+      createEl.style.backgroundColor = "black";
       // This is the name of our downloaded file
-      createEl.download = 'canvas';
+      createEl.download = download_name;
 
       // Click the download button, causing a download, and then remove it
       createEl.click();
       createEl.remove();
     });
+
   }
   /**
    * Destroy the scatterplot and release all associated resources.
